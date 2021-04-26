@@ -50,10 +50,10 @@ class Notebook(Product):
     diagonal = models.CharField(max_length=250, verbose_name='Screen diagonal')
     
     video = models.CharField(max_length=250, verbose_name='Video card')
-    ram = models.CharField(max_length=250, verbose_name='Operative Memory')
+    ram = models.CharField(max_length=250, verbose_name='Random-access memory')
     os = models.CharField(max_length=250, verbose_name='Operating system')
     
-    charge = models.CharField(max_length=250, verbose_name= 'Time without charging')
+    battery = models.CharField(max_length=250, verbose_name= 'Battery life')
 
 
 class Smartphone(Product):
@@ -68,12 +68,55 @@ class Smartphone(Product):
     
     ram = models.CharField(max_length=250, verbose_name='Operative Memory')
     sd = models.BooleanField(default=False, verbose_name='SD card')
-    sd_volume = models.CharField(max_length=250, verbose_name='Maximal SD volume')
+    sd_volume = models.CharField(max_length=250, verbose_name='Maximal SD volume', null=True, blank=True)
     
-    battery_volume = models.CharField(max_length=250, verbose_name='Battery volume')
+    battery = models.CharField(max_length=250, verbose_name='Battery life')
 
     main_cam = models.CharField(max_length=250, verbose_name='Main camera')
     frontal_cam = models.CharField(max_length=250, verbose_name='Frontal camera')
+
+
+class SmartTV(Product):
+    
+    class Meta:
+        verbose_name = 'Smart TV'
+        verbose_name_plural = 'Smart TVs'
+
+    diagonal = models.CharField(max_length=250, verbose_name='Screen diagonal')
+    resolution = models.CharField(max_length=250, verbose_name='Screen resolution')
+    
+    built_in_browser = models.CharField(max_length=250, verbose_name='Built-in web browser', null=True, blank=True)
+    built_in_apps = models.CharField(max_length=250, verbose_name='Bulit-in apps', null=True, blank=True)
+
+
+class Headphones(Product):
+    
+    class Meta:
+        verbose_name = 'Headphones'
+        verbose_name_plural = 'Headphones'
+
+    CONNECTION_TYPE_WIRE = 'wire'
+    CONNECTION_TYPE_WIRELESS = 'wireless'
+    
+    CONNECTION_TYPE_CHOICES = (
+        (CONNECTION_TYPE_WIRE, 'By wire / MiniJack'),
+        (CONNECTION_TYPE_WIRELESS, 'Wireless connection / Bluetooth')
+    )
+
+    FASTENING_EAR_BUDS = 'earbuds'
+    FASTENING_VERTICAL_BOW = 'vertical_bow'
+
+    FASTENING_CHOICES = (
+        (FASTENING_EAR_BUDS, 'Ear buds'),
+        (FASTENING_VERTICAL_BOW, 'Vertical bow')
+    )
+
+    connection_type = models.CharField(max_length=100, verbose_name='Headphone connection type', choices=CONNECTION_TYPE_CHOICES, default=CONNECTION_TYPE_WIRE)
+    fastening = models.CharField(max_length=100, verbose_name='Headphone fastening', choices=FASTENING_CHOICES, default=FASTENING_EAR_BUDS)
+
+    speaker_freq = models.CharField(max_length=250, verbose_name='Speaker frequency')
+    battery = models.CharField(max_length=250, verbose_name='Battery life', null=True, blank=True)
+    
 
 
 class Cart(models.Model):
@@ -144,9 +187,7 @@ class Order(models.Model):
     phone = models.CharField(max_length=20, verbose_name='Phone number', null=True, blank=True)
     address = models.CharField(max_length=255, verbose_name='Address', null=True, blank=True)
 
-    cart = models.ForeignKey(Cart, verbose_name='Cart', on_delete=models.CASCADE, null=True, blank=True)
-    
-    address = models.CharField(max_length=255, verbose_name='Address')
+    cart = models.ForeignKey('Cart', verbose_name='Cart', on_delete=models.CASCADE, null=True, blank=True)
 
     STATUS_DEFAULT = 'new'
     STATUS_IN_PROCESS = 'processing'
