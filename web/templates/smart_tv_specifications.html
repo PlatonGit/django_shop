@@ -1,0 +1,29 @@
+<table class="table">
+    <tbody>
+        <tr>
+            <td>Diagonal</td>
+            <td>{{ product.diagonal }}</td>
+        </tr>
+        <tr>
+            <td>Resolution</td>
+            <td>{{ product.resolution }}</td>
+        </tr>
+        {% if product.built_in_browser %}
+        <tr>
+            <td>Built-in browser</td>
+            <td>Yes</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td>Built-in browser</td>
+            <td>No</td>
+        </tr>
+        {% endif %}
+        {% if product.built_in_apps %}
+        <tr>
+            <td>Built-in apps</td>
+            <td>{{ product.built_in_apps }}</td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>

@@ -1,0 +1,38 @@
+<table class="table">
+    <tbody>
+        <tr>
+            <td>Diagonal</td>
+            <td>{{ product.diagonal }}</td>
+        </tr>
+        <tr>
+            <td>Display type</td>
+            <td>{{ product.display_type }}</td>
+        </tr>
+        <tr>
+            <td>Resolution</td>
+            <td>{{ product.resolution }}</td>
+        </tr>
+        <tr>
+            <td>RAM</td>
+            <td>{{ product.ram }}</td>
+        </tr>
+        {% if product.sd %}
+        <tr>
+            <td>Maximal SD card volume </td>
+            <td>{{ product.sd_volume }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td>Battery life</td>
+            <td>{{ product.battery }}</td>
+        </tr>
+        <td>
+            <td>Main camera</td>
+            <td>{{ product.main_cam }}</td>
+        </td>
+        <td>
+            <td>Frontal camera</td>
+            <td>{{ product.frontal_cam }}</td>
+        </tr>
+    </tbody>
+</table>

@@ -1,0 +1,54 @@
+body {
+    background-image: url(../custom_img/texture_1200.jpg);
+    background-repeat: repeat;   
+    background-size: 500px 500px;
+}
+
+.vl {
+    background-color: #6C757D;
+    margin-left: px;
+    margin-right: 10px;
+    height: 50px;
+    width: 1px;
+}
+
+.navbar .container {
+    border-radius: 10px; 
+    background-color: yellowgreen;
+}
+
+.navbar .container .navbar-brand {
+    color: white;
+    font-size: 30px;
+    font-weight: 800;
+}
+
+.main-container {
+    border-radius: 10px; 
+    background-color: rgba(255, 255, 255, 0.95);
+    margin: auto; 
+    padding: 20px; 
+    width: 1140px; 
+    height: fit-content;
+}
+
+.container .carousel {
+    margin-top: 0px !important;
+    margin: 0 auto;
+}
+
+.container .cards .card {
+    background-color: yellowgreen;
+}
+
+footer.bg-dark {
+    border-radius: 10px;
+    background-color: yellowgreen !important;
+    margin-top: .5rem !important;
+    margin: 0 auto;
+    width: 1140px;
+}
+
+footer .bg-dark .footer-container {
+    background-color: transparent;
+}

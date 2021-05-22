@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+{% if messages %}
+{% for message in messages %}
+    <div class="alert alert-success alert-dismissible fade show" style="margin-top: 20px;">
+        <strong>{{ message }}</strong>
+        <button class="close" type="button" data-dismiss="alert" role="alert">
+            <span aria-hidden="true">&times</span>
+        </button>
+    </div>
+{% endfor %}
+{% endif %}
+
+<h3 class="text-center mt 5 mb 5">Checkout</h3>
+<table class="table" style="margin-bottom: 20px;">
+    <thead>
+        <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Image</th>
+            <th scope="col">Price per item</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Overall price</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in cart.products.all %}
+            <tr>
+                <th scope="row">{{ product.content_object.title }}</th>
+                <td class="w-25">
+                    <img src="{{ product.content_object.image.url }}" alt="" class="img-fluid">
+                </td>
+                <td>{{ product.content_object.price }} $</td>
+                <td>{{ product.quantity }}</td>
+                <td>{{ product.final_price }} $</td>
+            </tr>
+        {% endfor %}
+        <tr>
+            <td colspan="2"></td>
+            <th scope="row">In total:</th>
+            <td>{{ cart.total_products }}</td>
+            <td>{{ cart.final_price }} $</td>
+        </tr>
+    </tbody>
+</table>
+<hr>
+<h3 class="text-center mt 5 mb 5">Order form</h3>
+<form action="{% url 'make_order' %}" method="POST">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <input type="submit" class="btn btn-success btn-block mb-3" values="Confirm order">
+</form>
+{% endblock content %}

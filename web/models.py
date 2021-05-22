@@ -1,10 +1,42 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.utils import timezone 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
- 
+from django.utils import timezone 
+from django.urls import reverse 
+
 User = get_user_model()
+
+def get_product_url(obj, viewname):
+    ct_model = obj.__class__._meta.model_name
+    return reverse(viewname, kwargs={'ct_model': ct_model, 'slug': obj.slug})
+
+
+
+class CategoryManager(models.Manager):
+    
+    CATEGORY_NAME_COUNT_NAME = {
+        'Notebooks': 'notebook__count',
+        'Smartphones': 'smartphone__count',
+        'Smart TVs': 'smarttv__count',
+        'Headphones': 'headphones__count'
+    }
+
+    def get_queryset(self):
+        return super().get_queryset()
+
+    def get_models_for_count(self, *model_names):
+        return [models.Count(model_name) for model_name in model_names]
+
+    def get_categories_for_left_sidebar(self):
+        models = self.get_models_for_count('notebook', 'smartphone', 'smarttv', 'headphones')
+        qs = list(self.get_queryset().annotate(*models))
+        data = [
+            dict(name=c.name, url=c.get_url(), count=getattr(c, self.CATEGORY_NAME_COUNT_NAME[c.name]))
+            for c in qs
+        ]
+        return data
+
 
 
 class Category(models.Model):
@@ -15,12 +47,21 @@ class Category(models.Model):
         
     name = models.CharField(max_length=250, unique=True, verbose_name='Category name')
     slug = models.SlugField(unique=True)
+    objects = CategoryManager()
 
     def __str__(self):
         return self.name
 
+    def get_url(self):
+        return reverse('category_detail', kwargs={'slug': self.slug})
+
+
 
 class Product(models.Model):
+    
+    MIN_RESOLUTION = (400, 400)
+    MAX_RESOLUTION = (800, 800)
+    MAX_FILE_SIZE = 3145728
     
     class Meta:
         abstract = True
@@ -33,10 +74,16 @@ class Product(models.Model):
     description = models.TextField(verbose_name='Description')
     price = models.DecimalField(max_digits=9, decimal_places=2, verbose_name='Price')
     image = models.ImageField(verbose_name='Image') # , upload_to='img/'
-    # stock = models.IntegerField(verbose_name='In stock')
 
     def __str__(self):
         return self.title
+
+    def get_url(self):
+        return get_product_url(self, 'product_detail')
+
+    def get_model_name(self):
+        return self.__class__.__name__.lower()
+
 
 
 class Notebook(Product):
@@ -50,10 +97,11 @@ class Notebook(Product):
     diagonal = models.CharField(max_length=250, verbose_name='Screen diagonal')
     
     video = models.CharField(max_length=250, verbose_name='Video card')
-    ram = models.CharField(max_length=250, verbose_name='Random-access memory')
+    ram = models.CharField(max_length=250, verbose_name='RAM')
     os = models.CharField(max_length=250, verbose_name='Operating system')
     
     battery = models.CharField(max_length=250, verbose_name= 'Battery life')
+
 
 
 class Smartphone(Product):
@@ -76,6 +124,7 @@ class Smartphone(Product):
     frontal_cam = models.CharField(max_length=250, verbose_name='Frontal camera')
 
 
+
 class SmartTV(Product):
     
     class Meta:
@@ -85,8 +134,9 @@ class SmartTV(Product):
     diagonal = models.CharField(max_length=250, verbose_name='Screen diagonal')
     resolution = models.CharField(max_length=250, verbose_name='Screen resolution')
     
-    built_in_browser = models.CharField(max_length=250, verbose_name='Built-in web browser', null=True, blank=True)
-    built_in_apps = models.CharField(max_length=250, verbose_name='Bulit-in apps', null=True, blank=True)
+    built_in_browser = models.BooleanField(default=False, verbose_name='Built-in browser')
+    built_in_apps = models.CharField(max_length=250, verbose_name='Built-in apps', null=True, blank=True)
+
 
 
 class Headphones(Product):
@@ -111,8 +161,8 @@ class Headphones(Product):
         (FASTENING_VERTICAL_BOW, 'Vertical bow')
     )
 
-    connection_type = models.CharField(max_length=100, verbose_name='Headphone connection type', choices=CONNECTION_TYPE_CHOICES, default=CONNECTION_TYPE_WIRE)
-    fastening = models.CharField(max_length=100, verbose_name='Headphone fastening', choices=FASTENING_CHOICES, default=FASTENING_EAR_BUDS)
+    connection_type = models.CharField(max_length=100, verbose_name='Headphones connection type', choices=CONNECTION_TYPE_CHOICES, default=CONNECTION_TYPE_WIRE)
+    fastening = models.CharField(max_length=100, verbose_name='Headphones fastening', choices=FASTENING_CHOICES, default=FASTENING_EAR_BUDS)
 
     speaker_freq = models.CharField(max_length=250, verbose_name='Speaker frequency')
     battery = models.CharField(max_length=250, verbose_name='Battery life', null=True, blank=True)
@@ -132,10 +182,11 @@ class Cart(models.Model):
     in_order = models.BooleanField(default=False)
     for_anonymous_user = models.BooleanField(default=False)
     
-    overall_price = models.DecimalField(max_digits=9, decimal_places=2, verbose_name='Overall price', default=0)
+    final_price = models.DecimalField(max_digits=9, decimal_places=2, verbose_name='Overall price', default=0)
 
     def __str__(self):
         return 'Cart #%d' % self.id
+
 
 
 class CartProduct(models.Model):
@@ -145,7 +196,7 @@ class CartProduct(models.Model):
         verbose_name_plural = 'Products in cart'
 
     user = models.ForeignKey('Customer', verbose_name='Customer', on_delete=models.CASCADE)
-    cart_fk = models.ForeignKey('Cart', verbose_name='Cart', on_delete=models.CASCADE)
+    cart = models.ForeignKey('Cart', verbose_name='Cart', on_delete=models.CASCADE)
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
@@ -158,20 +209,26 @@ class CartProduct(models.Model):
     def __str__(self):
         return 'Product %s from cart #%d' % (self.content_object.title, self.cart.id)
 
+    def save(self, *args, **kwargs):
+        self.final_price = self.quantity * self.content_object.price
+        return super().save(*args, **kwargs) 
+
+
 
 class Customer(models.Model):
 
     class Meta:
-        verbose_name = 'User'
-        verbose_name_plural = 'Users'
+        verbose_name = 'Customer'
+        verbose_name_plural = 'Customers'
 
     user = models.ForeignKey(User, verbose_name='User', on_delete=models.CASCADE)
     phone = models.CharField(max_length=20, verbose_name='Phone number', null=True, blank=True)
-    address = models.CharField(max_length=255, verbose_name='Address', null=True, blank=True)
+    address = models.CharField(max_length=1024, verbose_name='Address', null=True, blank=True)
     orders = models.ManyToManyField('Order', verbose_name='User\'s orders', related_name='orders', null=True, blank=True)
 
     def __str__(self):
         return 'Customer %s %s' % (self.user.first_name, self.user.last_name)
+
 
 
 class Order(models.Model):
@@ -180,15 +237,6 @@ class Order(models.Model):
         verbose_name = 'Order'
         verbose_name_plural = 'Orders'
 
-    customer = models.ForeignKey('Customer', verbose_name='Customer', on_delete=models.CASCADE)
-    
-    first_name = models.CharField(max_length=255, verbose_name='Customer\'s first name')
-    last_name = models.CharField(max_length=255, verbose_name='Customer\'s last name')
-    phone = models.CharField(max_length=20, verbose_name='Phone number', null=True, blank=True)
-    address = models.CharField(max_length=255, verbose_name='Address', null=True, blank=True)
-
-    cart = models.ForeignKey('Cart', verbose_name='Cart', on_delete=models.CASCADE, null=True, blank=True)
-
     STATUS_DEFAULT = 'new'
     STATUS_IN_PROCESS = 'processing'
     STATUS_READY = 'ready'
@@ -196,9 +244,9 @@ class Order(models.Model):
     
     STATUS_CHOICES = (
         (STATUS_DEFAULT, 'New'),
-        (STATUS_IN_PROCESS, 'Processing'),
-        (STATUS_READY, 'Ready'),
-        (STATUS_COMPLETED, 'Completed')
+        (STATUS_IN_PROCESS, 'Order is in processing'),
+        (STATUS_READY, 'Order is ready'),
+        (STATUS_COMPLETED, 'Order completed')
     )
 
     TYPE_PICKUP = 'pickup'
@@ -209,17 +257,67 @@ class Order(models.Model):
         (TYPE_DELIVERY, 'Delivery')
     )
 
-    status = models.CharField(max_length=100, verbose_name='Order\'s status', choices=STATUS_CHOICES, default=STATUS_DEFAULT)
-    order_type = models.CharField(max_length=100, verbose_name='Order\'s type', choices=TYPE_CHOICES, default=TYPE_PICKUP)
+
+    customer = models.ForeignKey('Customer', verbose_name='Customer', on_delete=models.CASCADE)
+    cart = models.ForeignKey('Cart', verbose_name='Cart', on_delete=models.CASCADE, null=True, blank=True)
     
-    creation_date = models.DateTimeField(auto_now=True, verbose_name='Created at')
-    delivery_date = models.DateTimeField(default=timezone.now, verbose_name='Delivered at')
+    first_name = models.CharField(max_length=255, verbose_name='Customer\'s first name')
+    last_name = models.CharField(max_length=255, verbose_name='Customer\'s last name')
+    phone = models.CharField(max_length=20, verbose_name='Phone number')
+    address = models.CharField(max_length=1024, verbose_name='Address', null=True, blank=True)
+    
+    status = models.CharField(max_length=100, verbose_name='Order\'s status', choices=STATUS_CHOICES, default=STATUS_DEFAULT)
+    order_type = models.CharField(max_length=100, verbose_name='Order\'s delivery method', choices=TYPE_CHOICES, default=TYPE_PICKUP)
 
     order_comment = models.TextField(max_length=1000, verbose_name='Order comment', null=True, blank=True)
-
+    
+    creation_date = models.DateTimeField(auto_now=True, verbose_name='Created at')
+    delivery_date = models.DateTimeField(default=timezone.now, verbose_name='Will be delivered at')
 
     def __str__(self):
         return 'Order #%d' % self.id
+
+
+
+class LatestProductManager:
+
+    @staticmethod
+    def get_products_for_main_page(*args, **kwargs):
+        with_respect_to = kwargs.get('with_respect_to')
+        count = kwargs.get('count') # <--- updated here
+        if count:           # <--- updated here
+            count = [*count]        # <--- updated here
+        else:                       # <--- updated here
+            count = []              # <--- updated here
+
+        products = list()
+
+        ct_models = ContentType.objects.filter(model__in=args)
+        count.extend([1 for i in range(len(ct_models) - len(count))]) # <--- updated here
+
+        for i, ct_model in enumerate(ct_models): # <--- updated here
+            model_products = ct_model.model_class()._base_manager.all().order_by('-id')[:count[i]] # <--- updated here
+            products.extend(model_products)
+        
+        if with_respect_to and with_respect_to in args:
+            ct_models = ContentType.objects.filter(model=with_respect_to)
+            if ct_models.exists():
+                products = sorted(
+                    products,
+                    key=lambda x: x.__class__._meta.model_name.startswith(with_respect_to), reverse=True
+                )
+
+        return products
+
+
+        
+class LatestProducts:
+    objects = LatestProductManager()
+
+
+# lt = LatestProducts()
+
+# lt.objects.get_products_for_main_page('notebook', 'headphones', with_respect_to='headphones', count=(1, 1))
 
 
 
